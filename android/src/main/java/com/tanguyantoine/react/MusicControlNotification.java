@@ -103,23 +103,25 @@ public class MusicControlNotification {
         remove.putExtra(PACKAGE_NAME, context.getApplicationInfo().packageName);
         builder.setDeleteIntent(PendingIntent.getBroadcast(context, 0, remove, PendingIntent.FLAG_UPDATE_CURRENT));
 
-        // Finally show/update the notification
-        if(NotificationService.INSTANCE != null) {
+        // NotificationManagerCompat.from(context).notify(null, 1, builder.build());
 
+
+
+         //Finally show/update the notification
+        if(NotificationService.INSTANCE != null) {
             if(isPlaying){
                 NotificationService.INSTANCE.startForeground(1,builder.build());
             }else{
                 NotificationManagerCompat.from(context).notify(null, 1, builder.build());
                 NotificationService.INSTANCE.stopForeground(false);
             }
-
         }else{
             NotificationManagerCompat.from(context).notify(null, 1, builder.build());
         }
     }
 
     public void hide() {
-        NotificationManagerCompat.from(context).cancel("MusicControl", 0);
+//        NotificationManagerCompat.from(context).cancel("MusicControl", 0);
     }
 
     /**
@@ -172,7 +174,13 @@ public class MusicControlNotification {
 
         @Override
         public void onCreate() {
+            super.onCreate();
             INSTANCE=this;
+        }
+
+        @Override
+        public void onDestroy (){
+            super.onDestroy();
         }
 
         @Override
@@ -191,7 +199,10 @@ public class MusicControlNotification {
             if(MusicControlModule.INSTANCE != null) {
                 MusicControlModule.INSTANCE.destroy();
             }
+            stopForeground(false);
             stopSelf(); // Stop the service as we won't need it anymore
+            android.os.Process.killProcess(android.os.Process.myPid());
+            System.exit(1);
         }
 
     }
