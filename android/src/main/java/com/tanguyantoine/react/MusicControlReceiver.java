@@ -33,7 +33,7 @@ public class MusicControlReceiver extends BroadcastReceiver {
 
             // Removes the notification and deactivates the media session
             module.notification.hide();
-            module.session.setActive(false);
+            // module.session.setActive(false);
 
             // Notify react native
             WritableMap data = Arguments.createMap();
