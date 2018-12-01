@@ -103,10 +103,14 @@ public class MusicControlNotification {
         remove.putExtra(PACKAGE_NAME, context.getApplicationInfo().packageName);
         builder.setDeleteIntent(PendingIntent.getBroadcast(context, 0, remove, PendingIntent.FLAG_UPDATE_CURRENT));
 
+<<<<<<< HEAD
         // NotificationManagerCompat.from(context).notify(null, 1, builder.build());
 
 
 
+=======
+
+>>>>>>> f22fa636427b70c1eabe594f6a7a5f6607a33039
          //Finally show/update the notification
         if(NotificationService.INSTANCE != null) {
             if(isPlaying){
