@@ -245,6 +245,8 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
 
         notification.setCustomNotificationIcon(notificationIcon);
 
+        md.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, null);
+        nb.setLargeIcon(null);
         if(metadata.hasKey("artwork")) {
             String artwork = null;
             boolean localArtwork = false;
@@ -277,9 +279,6 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
                 }
             });
             artworkThread.start();
-        } else {
-            md.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, null);
-            nb.setLargeIcon(null);
         }
 
         session.setMetadata(md.build());
