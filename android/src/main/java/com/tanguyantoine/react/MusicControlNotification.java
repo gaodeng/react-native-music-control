@@ -11,7 +11,9 @@ import android.support.v4.app.NotificationCompat;
 import android.view.KeyEvent;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableMap;
+import android.support.v4.media.app.NotificationCompat.MediaStyle;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 public class MusicControlNotification {
@@ -58,29 +60,53 @@ public class MusicControlNotification {
         next = createAction("next", "Next", mask, PlaybackStateCompat.ACTION_SKIP_TO_NEXT, next);
         previous = createAction("previous", "Previous", mask, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS, previous);
 
-        if (options != null && options.containsKey("skipForward") && (options.get("skipForward") == 10 || options.get("skipForward") == 5 || options.get("skipForward") == 30)) {
+        if (options != null && options.containsKey("skipForward") && (options.get("skipForward") == 5 || options.get("skipForward") == 10 || options.get("skipForward") == 15 || options.get("skipForward") == 30)) {
             skipForward = createAction("skip_forward_" + options.get("skipForward").toString(), "Skip Forward", mask, PlaybackStateCompat.ACTION_FAST_FORWARD, skipForward);
         } else {
-            skipForward = createAction("skip_forward_10", "Skip Forward", mask, PlaybackStateCompat.ACTION_FAST_FORWARD, skipForward);
+            skipForward = createAction("skip_forward", "Skip Forward", mask, PlaybackStateCompat.ACTION_FAST_FORWARD, skipForward);
         }
 
-        if (options != null && options.containsKey("skipBackward") && (options.get("skipBackward") == 10 || options.get("skipBackward") == 5 || options.get("skipBackward") == 30)) {
+        if (options != null && options.containsKey("skipBackward") && (options.get("skipBackward") == 5 || options.get("skipBackward") == 10 || options.get("skipBackward") == 15 || options.get("skipBackward") == 30)) {
             skipBackward = createAction("skip_backward_" + options.get("skipBackward").toString(), "Skip Backward", mask, PlaybackStateCompat.ACTION_REWIND, skipBackward);
         } else {
-            skipBackward = createAction("skip_backward_10", "Skip Backward", mask, PlaybackStateCompat.ACTION_REWIND, skipBackward);
+            skipBackward = createAction("skip_backward", "Skip Backward", mask, PlaybackStateCompat.ACTION_REWIND, skipBackward);
         }
     }
 
     public synchronized void show(NotificationCompat.Builder builder, boolean isPlaying) {
         // Add the buttons
         builder.mActions.clear();
+        ArrayList<Integer> compactActionList = new ArrayList<>();
         if(previous != null) builder.addAction(previous);
-        if(skipBackward != null) builder.addAction(skipBackward);
-        if(play != null && !isPlaying) builder.addAction(play);
-        if(pause != null && isPlaying) builder.addAction(pause);
+        if(skipBackward != null){
+            builder.addAction(skipBackward);
+            compactActionList.add(builder.mActions.size()-1);
+        }
+        if(play != null && !isPlaying){
+            builder.addAction(play);
+            compactActionList.add(builder.mActions.size()-1);
+        }
+        if(pause != null && isPlaying) {
+            builder.addAction(pause);
+            compactActionList.add(builder.mActions.size()-1);
+        }
         if(stop != null) builder.addAction(stop);
+        if(skipForward != null) {
+            builder.addAction(skipForward);
+            compactActionList.add(builder.mActions.size()-1);
+        }
         if(next != null) builder.addAction(next);
-        if(skipForward != null) builder.addAction(skipForward);
+
+
+        int[] compactActions = new int[compactActionList.size()];
+        int i = 0;
+        for (Integer n : compactActionList) {
+            compactActions[i++] = n;
+        }
+
+
+        builder.setStyle(new MediaStyle().setMediaSession(this.module.session.getSessionToken()).setShowActionsInCompactView(compactActions));
+
 
         // Set whether notification can be closed based on closeNotification control (default PAUSED)
         if(module.notificationClose == MusicControlModule.NotificationClose.ALWAYS) {

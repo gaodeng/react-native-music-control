@@ -133,6 +133,7 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
         }
         nb = new NotificationCompat.Builder(context, CHANNEL_ID);
         nb.setStyle(new MediaStyle().setMediaSession(session.getSessionToken()));
+        nb.setShowWhen(false);
 
         state = pb.build();
 
