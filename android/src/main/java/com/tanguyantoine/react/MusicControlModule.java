@@ -39,6 +39,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MusicControlModule extends ReactContextBaseJavaModule implements ComponentCallbacks2 {
+    private static final String TAG = LogHelper.makeLogTag(MusicControlModule.class);
 
     static MusicControlModule INSTANCE;
 
@@ -55,7 +56,7 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
     private MusicControlListener.VolumeListener volume;
     private MusicControlReceiver receiver;
 
-    private Thread artworkThread;
+    private String artworkUrl;
 
     private boolean remoteVolume = false;
     private boolean isPlaying = false;
@@ -170,9 +171,7 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
         context.unregisterReceiver(receiver);
         context.unregisterComponentCallbacks(this);
 
-        if (artworkThread != null && artworkThread.isAlive())
-            artworkThread.interrupt();
-        artworkThread = null;
+        artworkUrl=null;
 
         session = null;
         notification = null;
@@ -198,7 +197,7 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
     @ReactMethod
     synchronized public void setNowPlaying(ReadableMap metadata) {
         init();
-        if(artworkThread != null && artworkThread.isAlive()) artworkThread.interrupt();
+
 
         String title = metadata.hasKey("title") ? metadata.getString("title") : null;
         String artist = metadata.hasKey("artist") ? metadata.getString("artist") : null;
@@ -245,46 +244,66 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
 
         notification.setCustomNotificationIcon(notificationIcon);
 
-        md.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, null);
-        nb.setLargeIcon(null);
+
         if(metadata.hasKey("artwork")) {
             String artwork = null;
+
+
+
             boolean localArtwork = false;
+            String fetchArtUrl = null;
+            Bitmap bitmap = null;
 
             if(metadata.getType("artwork") == ReadableType.Map) {
-                artwork = metadata.getMap("artwork").getString("uri");
+                artworkUrl = metadata.getMap("artwork").getString("uri");
                 localArtwork = true;
             } else {
-                artwork = metadata.getString("artwork");
+                artworkUrl = metadata.getString("artwork");
             }
 
-            final String artworkUrl = artwork;
-            final boolean artworkLocal = localArtwork;
 
-            artworkThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Bitmap bitmap = loadArtwork(artworkUrl, artworkLocal);
+            if(localArtwork&&!artworkUrl.startsWith("http")){
+                ResourceDrawableIdHelper helper = ResourceDrawableIdHelper.getInstance();
+                Drawable image = helper.getResourceDrawable(getReactApplicationContext(), artworkUrl);
 
-                    if(md != null) {
-                        md.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap);
-                        session.setMetadata(md.build());
-                    }
-                    if(nb != null) {
-                        nb.setLargeIcon(bitmap);
-                        notification.show(nb, isPlaying);
-                    }
-
-                    artworkThread = null;
+                if(image instanceof BitmapDrawable) {
+                    bitmap = ((BitmapDrawable)image).getBitmap();
+                } else {
+                    bitmap = BitmapFactory.decodeFile(artworkUrl);
                 }
-            });
-            artworkThread.start();
+            }else{
+
+                bitmap = AlbumArtCache.getInstance().getBigImage(artworkUrl);
+                if (bitmap == null) {
+                    fetchArtUrl = artworkUrl;
+                    // use a placeholder art while the remote art is being downloaded
+                    Resources r = getReactApplicationContext().getResources();
+                    String packageName = getReactApplicationContext().getPackageName();
+                    bitmap = BitmapFactory.decodeResource(r,r.getIdentifier("music_control_default_art", "drawable", packageName));
+                }
+            }
+
+            md.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap);
+            nb.setLargeIcon(bitmap);
+
+            if (fetchArtUrl != null) {
+                fetchBitmapFromURLAsync(fetchArtUrl);
+            }
+
+
+        }else{
+            md.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, null);
+            nb.setLargeIcon(null);
+            this.artworkUrl=null;
         }
 
         session.setMetadata(md.build());
         session.setActive(true);
         notification.show(nb, isPlaying);
     }
+
+
+
 
     @ReactMethod
     synchronized public void updatePlayback(ReadableMap info) {
@@ -329,9 +348,8 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
     @ReactMethod
     synchronized public void resetNowPlaying() {
         if(!init) return;
-        if(artworkThread != null && artworkThread.isAlive()) artworkThread.interrupt();
-        artworkThread = null;
 
+        artworkUrl=null;
         md = new MediaMetadataCompat.Builder();
 
         if (notification != null) notification.hide();
@@ -453,6 +471,28 @@ public class MusicControlModule extends ReactContextBaseJavaModule implements Co
         }
 
         return bitmap;
+    }
+
+    private void fetchBitmapFromURLAsync(final String bitmapUrl) {
+        AlbumArtCache.getInstance().fetch(bitmapUrl, new AlbumArtCache.FetchListener() {
+            @Override
+            public void onFetched(String artUrl, Bitmap bitmap, Bitmap icon) {
+                if (artworkUrl != null &&
+                        artworkUrl.equals(artUrl)) {
+                    // If the media is still the same, update the notification:
+                    LogHelper.d(TAG, "fetchBitmapFromURLAsync: set bitmap to ", artUrl);
+
+                    if(md != null) {
+                        md.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap);
+                        session.setMetadata(md.build());
+                    }
+                    if(nb != null) {
+                        nb.setLargeIcon(bitmap);
+                        notification.show(nb, isPlaying);
+                    }
+                }
+            }
+        });
     }
 
     @Override
